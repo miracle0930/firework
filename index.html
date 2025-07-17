@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>超级烟花秀</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: radial-gradient(ellipse at bottom, #0a0e1a 0%, #000000 100%);
+            height: 100vh;
+            touch-action: manipulation;
+            cursor: pointer;
+            font-family: 'Arial', sans-serif;
+        }
+        
+        .firework-core {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            box-shadow: 0 0 30px 10px;
+            animation: core-explode 0.6s cubic-bezier(0.165, 0.84, 0.44, 1) forwards;
+            transform-origin: center;
+            z-index: 2;
+            filter: blur(1px);
+        }
+        
+        @keyframes core-explode {
+            0% {
+                transform: scale(0.2);
+                opacity: 1;
+            }
+            70% {
+                opacity: 0.9;
+            }
+            100% {
+                transform: scale(35);
+                opacity: 0;
+            }
+        }
+        
+        .particle {
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            animation: particle-move 1.5s ease-out forwards;
+            box-shadow: 0 0 15px 3px;
+            z-index: 3;
+            filter: blur(0.5px);
+        }
+        
+        @keyframes particle-move {
+            0% {
+                transform: translate(0, 0) scale(1);
+                opacity: 1;
+            }
+            100% {
+                transform: translate(var(--tx), var(--ty)) scale(0.2);
+                opacity: 0;
+            }
+        }
+        
+        .star {
+            position: absolute;
+            background-color: white;
+            border-radius: 50%;
+            animation: twinkle var(--duration) ease-in-out infinite;
+            filter: drop-shadow(0 0 5px white);
+        }
+        
+        @keyframes twinkle {
+            0%, 100% {
+                opacity: 0.3;
+            }
+            50% {
+                opacity: 1;
+            }
+        }
+        
+        .text-firework {
+            position: absolute;
+            color: white;
+            font-size: 36px;
+            font-weight: bold;
+            text-shadow: 0 0 25px currentColor;
+            animation: text-float 3s cubic-bezier(0.19, 1, 0.22, 1) forwards;
+            transform-origin: center;
+            pointer-events: none;
+            user-select: none;
+            white-space: nowrap;
+            z-index: 10;
+            opacity: 0;
+            will-change: transform, opacity;
+            filter: drop-shadow(0 0 10px currentColor);
+        }
+        
+        @keyframes text-float {
+            0% {
+                transform: scale(0.2) translateY(0);
+                opacity: 0;
+                filter: blur(8px) brightness(2);
+            }
+            20% {
+                opacity: 1;
+                filter: blur(0) brightness(3);
+            }
+            30% {
+                transform: scale(1.2) translateY(-40px);
+            }
+            80% {
+                opacity: 0.9;
+                filter: brightness(2);
+            }
+            100% {
+                transform: scale(0.9) translateY(-150px);
+                opacity: 0;
+                filter: blur(3px) brightness(1);
+            }
+        }
+        
+        .shockwave {
+            position: absolute;
+            border-radius: 50%;
+            animation: shockwave 1.2s ease-out forwards;
+            opacity: 0;
+            z-index: 1;
+            box-shadow: 0 0 50px 20px;
+            filter: blur(1px);
+        }
+        
+        @keyframes shockwave {
+            0% {
+                transform: scale(0);
+                opacity: 0.7;
+            }
+            100% {
+                transform: scale(4);
+                opacity: 0;
+            }
+        }
+        
+        .trail {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            border-radius: 50%;
+            animation: trail-fade 0.8s linear forwards;
+            z-index: 4;
+        }
+        
+        @keyframes trail-fade {
+            0% {
+                transform: scale(1);
+                opacity: 0.8;
+            }
+            100% {
+                transform: scale(0.5);
+                opacity: 0;
+            }
+        }
+        
+        .flash {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: white;
+            opacity: 0;
+            pointer-events: none;
+            z-index: 100;
+            animation: flash 0.3s ease-out;
+        }
+        
+        @keyframes flash {
+            0% {
+                opacity: 0.6;
+            }
+            100% {
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <script>
+        // 文字选项
+        const textOptions = ["小小最美", "最爱小小", "小小最好看", "管宝龙爱饭宝龙"];
+        
+        // 高级颜色方案
+        const colorPalettes = [
+            { primary: '#FF3CAC', secondary: '#562B7C', tertiary: '#2B86C5' },
+            { primary: '#FF416C', secondary: '#FF4B2B', tertiary: '#FDC830' },
+            { primary: '#00F260', secondary: '#0575E6', tertiary: '#02AAB0' },
+            { primary: '#DA22FF', secondary: '#9733EE', tertiary: '#4776E6' },
+            { primary: '#F5515F', secondary: '#A1051D', tertiary: '#FF9966' },
+            { primary: '#00FF9D', secondary: '#00B8FF', tertiary: '#001AFF' },
+            { primary: '#FF61D3', secondary: '#FE9090', tertiary: '#B465F8' }
+        ];
+        
+        // 创建星星背景
+        function createStars() {
+            const starsCount = 300;
+            const body = document.body;
+            
+            for (let i = 0; i < starsCount; i++) {
+                const star = document.createElement('div');
+                star.className = 'star';
+                
+                // 随机大小 (1px - 4px)
+                const size = Math.random() * 3 + 1;
+                star.style.width = `${size}px`;
+                star.style.height = `${size}px`;
+                
+                // 随机位置
+                star.style.left = `${Math.random() * 100}%`;
+                star.style.top = `${Math.random() * 100}%`;
+                
+                // 随机闪烁持续时间 (1-6秒)
+                star.style.setProperty('--duration', `${Math.random() * 5 + 1}s`);
+                
+                body.appendChild(star);
+            }
+        }
+        
+        // 创建冲击波效果
+        function createShockwave(x, y, color) {
+            const shockwave = document.createElement('div');
+            shockwave.className = 'shockwave';
+            shockwave.style.left = `${x}px`;
+            shockwave.style.top = `${y}px`;
+            shockwave.style.boxShadow = `0 0 60px 25px ${color}`;
+            
+            document.body.appendChild(shockwave);
+            
+            setTimeout(() => {
+                shockwave.remove();
+            }, 1200);
+        }
+        
+        // 创建闪光效果
+        function createFlash() {
+            const flash = document.createElement('div');
+            flash.className = 'flash';
+            document.body.appendChild(flash);
+            
+            setTimeout(() => {
+                flash.remove();
+            }, 300);
+        }
+        
+        // 创建粒子尾迹
+        function createTrail(x, y, color) {
+            const trail = document.createElement('div');
+            trail.className = 'trail';
+            trail.style.left = `${x}px`;
+            trail.style.top = `${y}px`;
+            trail.style.backgroundColor = color;
+            trail.style.boxShadow = `0 0 10px 2px ${color}`;
+            
+            document.body.appendChild(trail);
+            
+            setTimeout(() => {
+                trail.remove();
+            }, 800);
+        }
+        
+        // 创建烟花效果
+        function createFirework(x, y) {
+            // 随机选择颜色方案
+            const palette = colorPalettes[Math.floor(Math.random() * colorPalettes.length)];
+            
+            // 创建闪光效果
+            if(Math.random() > 0.7) {
+                createFlash();
+            }
+            
+            // 创建冲击波
+            createShockwave(x, y, palette.primary);
+            
+            // 核心爆炸效果
+            const core = document.createElement('div');
+            core.className = 'firework-core';
+            core.style.left = `${x}px`;
+            core.style.top = `${y}px`;
+            core.style.backgroundColor = palette.primary;
+            core.style.boxShadow = `0 0 40px 15px ${palette.primary}`;
+            
+            document.body.appendChild(core);
+            
+            // 创建大量粒子
+            const particleCount = 80 + Math.floor(Math.random() * 40);
+            for (let i = 0; i < particleCount; i++) {
+                setTimeout(() => {
+                    const particle = document.createElement('div');
+                    particle.className = 'particle';
+                    particle.style.left = `${x}px`;
+                    particle.style.top = `${y}px`;
+                    
+                    // 随机选择颜色
+                    const colorRand = Math.random();
+                    const color = colorRand > 0.7 ? palette.tertiary : 
+                                 colorRand > 0.3 ? palette.secondary : palette.primary;
+                    
+                    particle.style.backgroundColor = color;
+                    particle.style.boxShadow = `0 0 20px 5px ${color}`;
+                    
+                    // 随机方向和距离
+                    const angle = Math.random() * Math.PI * 2;
+                    const distance = 100 + Math.random() * 150;
+                    const tx = Math.cos(angle) * distance;
+                    const ty = Math.sin(angle) * distance;
+                    
+                    particle.style.setProperty('--tx', `${tx}px`);
+                    particle.style.setProperty('--ty', `${ty}px`);
+                    
+                    // 添加尾迹
+                    if(Math.random() > 0.8) {
+                        for(let j = 0; j < 5; j++) {
+                            setTimeout(() => {
+                                createTrail(
+                                    x + (tx * j/5), 
+                                    y + (ty * j/5), 
+                                    color
+                                );
+                            }, j * 50);
+                        }
+                    }
+                    
+                    document.body.appendChild(particle);
+                    
+                    // 动画结束后移除粒子
+                    setTimeout(() => {
+                        particle.remove();
+                    }, 1500);
+                }, Math.random() * 400);
+            }
+            
+            // 创建文字效果
+            const textFirework = document.createElement('div');
+            textFirework.className = 'text-firework';
+            textFirework.style.left = `${x}px`;
+            textFirework.style.top = `${y}px`;
+            
+            // 随机选择文字
+            const randomText = textOptions[Math.floor(Math.random() * textOptions.length)];
+            textFirework.textContent = randomText;
+            
+            // 文字颜色
+            textFirework.style.color = palette.primary;
+            textFirework.style.textShadow = `0 0 30px ${palette.secondary}`;
+            
+            document.body.appendChild(textFirework);
+            
+            // 动画结束后移除元素
+            setTimeout(() => {
+                core.remove();
+                textFirework.remove();
+            }, 3000);
+        }
+        
+        // 初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            createStars();
+            
+            document.addEventListener('click', (e) => {
+                createFirework(e.clientX, e.clientY);
+            });
+            
+            // 支持触摸事件
+            document.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                const touch = e.touches[0];
+                createFirework(touch.clientX, touch.clientY);
+            });
+        });
+    </script>
+</body>
+</html>
